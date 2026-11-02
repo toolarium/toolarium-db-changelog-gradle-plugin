@@ -1,85 +1,135 @@
+[![License](https://img.shields.io/github/license/toolarium/toolarium-db-changelog-gradle-plugin)](https://github.com/toolarium/toolarium-db-changelog-gradle-plugin/blob/master/LICENSE)
+[![Maven Central](https://img.shields.io/maven-central/v/com.github.toolarium/toolarium-db-changelog-gradle-plugin/0.8.0)](https://search.maven.org/artifact/com.github.toolarium/toolarium-db-changelog-gradle-plugin/0.8.0/jar)
+[![javadoc](https://javadoc.io/badge2/com.github.toolarium/toolarium-db-changelog-gradle-plugin/javadoc.svg)](https://javadoc.io/doc/com.github.toolarium/toolarium-db-changelog-gradle-plugin)
+
 # toolarium-db-changelog-gradle-plugin
 
-Implements the gradle-plugin integration of toolarium-db-changelog.
+A Gradle plugin that provides build tasks for the [toolarium-db-changelog](https://github.com/toolarium/toolarium-db-changelog) library, supporting update, rollback, status, validate, tag, history, sync, clear checksums, and dry-run SQL generation.
 
-## Getting Started
 
-These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
+## Applying the plugin
 
-### Prerequisites
-
-What things you need to install the software and how to install them
-
-```
-Give examples
+**Groovy DSL** (`build.gradle`):
+```groovy
+plugins {
+    id 'com.github.toolarium.db-changelog' version '0.8.0'
+}
 ```
 
-### Installing
-
-A step by step series of examples that tell you how to get a development env running
-
-Say what the step will be
-
-```
-Give the example
+**Kotlin DSL** (`build.gradle.kts`):
+```kotlin
+plugins {
+    id("com.github.toolarium.db-changelog") version "0.8.0"
+}
 ```
 
-And repeat
 
-```
-until finished
-```
+## Configuration
 
-End with an example of getting some data out of the system or using it for a little demo
+Configure the plugin via the `dbChangelog` extension block:
 
-## Running the tests
-
-Explain how to run the automated tests for this system
-
-### Break down into end to end tests
-
-Explain what these tests test and why
-
-```
-Give an example
-```
-
-### And coding style tests
-
-Explain what these tests test and why
-
-```
-Give an example
+```groovy
+dbChangelog {
+    url = 'jdbc:postgresql://localhost:5432/mydb'
+    username = 'dbuser'
+    password = 'secret'
+    driver = 'org.postgresql.Driver'
+    changelog = 'src/main/resources/db/changelog/changelog-master.db.yaml'
+    contexts = ['production']
+    labels = ['v1.0']
+    changelogTableName = 'DB_CHANGELOG'
+    defaultSchemaName = 'public'
+    leaderElection = false
+}
 ```
 
-## Deployment
+| Property | Default | Description |
+|---|---|---|
+| `url` | (required) | JDBC connection URL |
+| `username` | (none) | Database username |
+| `password` | (none) | Database password |
+| `driver` | (auto-detect) | JDBC driver class name |
+| `changelog` | `src/main/resources/db/changelog/changelog-master.db.yaml` | Path to the changelog file |
+| `contexts` | (empty) | Active contexts for filtering changesets |
+| `labels` | (empty) | Active labels for filtering changesets |
+| `changelogTableName` | `DB_CHANGELOG` | Name of the tracking table |
+| `defaultSchemaName` | (none) | Default database schema |
+| `leaderElection` | `false` | Enable distributed locking via leader election |
+| `rollbackCount` | (none) | Number of changesets to roll back |
+| `rollbackTag` | (none) | Tag to roll back to |
+| `rollbackDate` | (none) | ISO-8601 date to roll back to |
 
-Add additional notes about how to deploy this on a live system
+
+## Tasks
+
+All tasks are registered under the `db-changelog` group.
+
+| Task | Description |
+|---|---|
+| `changelogUpdate` | Applies all pending changesets (or up to N with `-PupdateCount=N`) |
+| `changelogRollback` | Rolls back changesets by count, tag, or date |
+| `changelogStatus` | Displays the status of pending changesets |
+| `changelogValidate` | Validates the changelog for errors and checksum mismatches |
+| `changelogTag` | Tags the current database state (requires `-PtagName=TAG`) |
+| `changelogHistory` | Displays the history of applied changesets |
+| `changelogSync` | Marks all pending changesets as executed without running them |
+| `changelogClearChecksums` | Clears all stored checksums, forcing recalculation on the next run |
+| `changelogGenerateRollbackSql` | Generates rollback SQL for the last N changesets (requires `-ProllbackCount=N`) |
+| `changelogGenerateSql` | Generates the SQL that would be executed by an update (dry-run, not yet available) |
+| `changelogDropAll` | Drops all database objects managed by the changelog (not yet available) |
+
+
+## Usage examples
+
+```bash
+# Apply all pending migrations
+gradle changelogUpdate
+
+# Apply up to 5 pending migrations
+gradle changelogUpdate -PupdateCount=5
+
+# Check pending changesets
+gradle changelogStatus
+
+# Show applied changeset history
+gradle changelogHistory
+
+# Validate changelog
+gradle changelogValidate
+
+# Tag the current state
+gradle changelogTag -PtagName=v1.0
+
+# Roll back the last 3 changesets
+gradle changelogRollback -ProllbackCount=3
+
+# Roll back to a tag
+gradle changelogRollback -ProllbackTag=v1.0
+
+# Roll back to a specific date
+gradle changelogRollback -ProllbackDate=2026-01-15T10:00:00Z
+
+# Generate rollback SQL without executing
+gradle changelogGenerateRollbackSql -ProllbackCount=3
+
+# Mark all pending changesets as applied (baselining)
+gradle changelogSync
+
+# Clear all checksums (forces recalculation)
+gradle changelogClearChecksums
+```
+
 
 ## Built With
 
 * [cb](https://github.com/toolarium/common-build) - The toolarium common build
 
-## Contributing
-
-Please read [CONTRIBUTING.md](https://gist.github.com/PurpleBooth/b24679402957c63ec426) for details on our code of conduct, and the process for submitting pull requests to us.
 
 ## Versioning
 
-We use [SemVer](http://semver.org/) for versioning. For the versions available, see the [tags on this repository](https://github.com/your/project/tags). 
+We use [SemVer](http://semver.org/) for versioning. For the versions available, see the [tags on this repository](https://github.com/toolarium/toolarium-db-changelog-gradle-plugin/tags).
 
-## Authors
-
-* **Billie Thompson** - *Initial work* - [PurpleBooth](https://github.com/PurpleBooth)
-
-See also the list of [contributors](https://github.com/your/project/contributors) who participated in this project.
 
 ## License
 
-This project is licensed under the MIT License: https://mit-license.org - see the [LICENSE](LICENSE) file for details
-
-## Acknowledgments
-
-* Hat tip to anyone whose code was used
-* Inspiration
-* etc
+This project is licensed under the MPL-2.0 License, see the [LICENSE](LICENSE) file for details.
