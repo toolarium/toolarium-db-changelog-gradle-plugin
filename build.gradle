@@ -11,6 +11,12 @@ apply from: "https://raw.githubusercontent.com/toolarium/common-gradle-build/mas
 
 
 /***************************************************************************************
+ * Allow additional root-level files not in the common-gradle-build default whitelist
+ ***************************************************************************************/
+addCommonGradlePropertyList("allowedMainFiles", "$rootDirectory/CLAUDE.md")
+
+
+/***************************************************************************************
  * Gradle plugin definition
  ***************************************************************************************/
 gradlePlugin {
@@ -46,10 +52,73 @@ tasks.withType(JavaCompile) {
 
 
 /************************************************************************************************************************
- * Fix signing/publishing task dependency: java-gradle-plugin creates a pluginMaven publication whose signing output
- * is consumed by the mavenJava publication task without an explicit dependency.
+ * POM metadata and signing/publishing fixes for java-gradle-plugin:
+ * - The pluginMaven and plugin marker publications do not inherit POM metadata from common-gradle-build.
+ * - The signing output of one publication is consumed by the other without an explicit dependency.
  ************************************************************************************************************************/
 afterEvaluate {
+    publishing {
+        publications {
+            all {
+                pom {
+                    name = "${rootProject.name}"
+                    description = "${projectDescription}"
+                    url = "${projectUrl}"
+
+                    licenses {
+                        license {
+                            name = "${licenseText}"
+                            url = "${licenseUrl}"
+                        }
+                    }
+
+                    def publishingUsername = project.getProperty('publishingUsername')
+                    def publishingMail = publishingUsername
+                    if (project.hasProperty('publishingMail')) {
+                        publishingMail = project.getProperty('publishingMail')
+                    }
+
+                    developers {
+                        developer {
+                            id = "${mavenUsername}"
+
+                            if (publishingUsername != null && !publishingUsername.isEmpty()) {
+                                name = "${publishingUsername}"
+                            }
+
+                            if (publishingMail != null && !publishingMail.isEmpty()) {
+                                email = "${publishingMail}"
+                            }
+                        }
+                    }
+
+                    def scmConnection
+                    if (project.hasProperty('scmConnection')) {
+                        scmConnection = project.getProperty('scmConnection')
+                    } else {
+                        def urlList = getRemoteGit()
+                        if (urlList != null && !urlList.isEmpty() && urlList[0] != null && urlList[0].url != null) {
+                            scmConnection = 'scm:git:' + urlList[0].url
+                        }
+                    }
+
+                    def scmDeveloperConnection = scmConnection
+                    if (project.hasProperty('scmDeveloperConnection')) {
+                        scmDeveloperConnection = project.getProperty('scmDeveloperConnection')
+                    }
+
+                    if (scmConnection != null || scmDeveloperConnection != null) {
+                        scm {
+                            connection = "${scmConnection}"
+                            developerConnection = "${scmDeveloperConnection}"
+                            url = "${projectUrl}"
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     tasks.matching { it.name == 'publishMavenJavaPublicationToMavenRepository' }.configureEach {
         def signTask = tasks.findByName('signPluginMavenPublication')
         if (signTask != null) {
