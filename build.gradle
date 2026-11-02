@@ -43,3 +43,23 @@ dependencies {
 tasks.withType(JavaCompile) {
     options.compilerArgs << '-Xlint:-options'
 }
+
+
+/************************************************************************************************************************
+ * Fix signing/publishing task dependency: java-gradle-plugin creates a pluginMaven publication whose signing output
+ * is consumed by the mavenJava publication task without an explicit dependency.
+ ************************************************************************************************************************/
+afterEvaluate {
+    tasks.matching { it.name == 'publishMavenJavaPublicationToMavenRepository' }.configureEach {
+        def signTask = tasks.findByName('signPluginMavenPublication')
+        if (signTask != null) {
+            mustRunAfter signTask
+        }
+    }
+    tasks.matching { it.name == 'publishPluginMavenPublicationToMavenRepository' }.configureEach {
+        def signTask = tasks.findByName('signMavenJavaPublication')
+        if (signTask != null) {
+            mustRunAfter signTask
+        }
+    }
+}
